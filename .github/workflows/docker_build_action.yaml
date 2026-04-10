@@ -1,6 +1,7 @@
 name: Docker Image CI
 
 permissions:
+  content: read
   id-token: write
 
 on:
