@@ -205,3 +205,57 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Terraform / OpenTofu
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+*.tfplan
+# NOTE: .terraform.lock.hcl is intentionally NOT ignored — commit it to pin provider versions
+terraform.tfvars
+*.auto.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+crash.log
+crash.*.log
+
+# Docker
+.dockerignore
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Secrets / credentials — never commit these
+.env
+.env.*
+*.pem
+*.key
+*credentials*
+*secrets*
+aws-exports.js
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code local settings
+.claude/
+
+# Python model caches (can be large)
+.cache/huggingface/
+.cache/clip/
+*.ckpt
+*.safetensors
+
+# OS
+Thumbs.db

@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and fill in your values
+
+aws_region            = "us-east-1"
+env                   = "dev"
+data_bucket           = "my-catalog-bucket"
+athena_results_bucket = "my-athena-results-bucket"  # can be same as data_bucket
+
+provider_type        = "clip"
+provider_model_name  = "ViT-B-32"
+provider_pretrained  = "openai"
+embedding_dimension  = 512
+
+# Lock the API to your IP only (no ALB). Find your IP with: curl ifconfig.me
+my_ip_cidr = ["YOUR_IP/32"]
