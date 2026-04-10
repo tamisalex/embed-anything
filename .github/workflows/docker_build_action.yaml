@@ -31,8 +31,9 @@ jobs:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           REPOSITORY: embed-anything/pipeline
           IMAGE_TAG: ${{ github.sha }}
-        run: docker build -f packages/embed-api/Dockerfile --build-arg PROVIDER=clip -t $REPOSITORY:latest .
-        run: docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+        run: |
+          docker build -f packages/embed-api/Dockerfile --build-arg PROVIDER=clip -t $REPOSITORY:latest .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
  
 
       - name: Build embed-anything/api
@@ -40,6 +41,7 @@ jobs:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           REPOSITORY: embed-anything/api
           IMAGE_TAG: ${{ github.sha }}
-        run: docker build -f packages/embed-api/Dockerfile --build-arg PROVIDER=clip -t $REPOSITORY:latest .
-        run: docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+        run: |
+          docker build -f packages/embed-api/Dockerfile --build-arg PROVIDER=clip -t $REPOSITORY:latest .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
 
