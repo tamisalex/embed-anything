@@ -39,6 +39,11 @@ variable "embedding_dimension" {
   default = 512
 }
 
+variable "prefect_account_id" {
+  description = "Prefect Cloud account ID (UUID) — find at app.prefect.cloud/settings. Used to scope the OIDC trust policy."
+  type        = string
+}
+
 variable "my_ip_cidr" {
   description = "Your IP in CIDR notation to lock API access (e.g. '1.2.3.4/32'). Find it with: curl ifconfig.me"
   type        = list(string)

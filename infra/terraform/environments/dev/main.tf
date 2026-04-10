@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 
   # Uncomment to use S3 remote state
@@ -120,6 +124,27 @@ module "pipeline_task" {
   task_cpu    = 2048  # 2 vCPU — comfortable for CLIP + Ray local
   task_memory = 8192  # 8 GB
 
+  tags = local.common_tags
+}
+
+# ---------------------------------------------------------------------------
+# ECS API service
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Prefect OIDC — federated identity for Prefect Managed work pool
+# ---------------------------------------------------------------------------
+
+module "prefect_oidc" {
+  source = "../../modules/prefect-oidc"
+
+  name                 = local.name
+  prefect_account_id   = var.prefect_account_id
+  pipeline_cluster_arn = module.pipeline_task.cluster_arn
+  ecs_role_arns = [
+    module.pipeline_task.task_role_arn,
+    module.pipeline_task.execution_role_arn,
+  ]
   tags = local.common_tags
 }
 

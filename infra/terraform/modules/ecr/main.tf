@@ -18,8 +18,10 @@ resource "aws_ecr_repository" "repos" {
 
 # Lifecycle policy: keep only the last N images to stay within free tier
 resource "aws_ecr_lifecycle_policy" "cleanup" {
-  for_each   = aws_ecr_repository.repos
-  repository = each.value.name
+  for_each = toset(var.repository_names) # Use the static input map keys
+
+  # Reference the repository NAME from the resource using the static key
+  repository = aws_ecr_repository.repos[each.key].name
 
   policy = jsonencode({
     rules = [{

@@ -23,7 +23,7 @@ name: embed-pipeline
 # Pull flow code from your GitHub repo on each run
 pull:
   - prefect.deployments.steps.git_clone:
-      repository: "https://github.com/YOUR_USERNAME/embed-anything.git"
+      repository: "https://github.com/tamisalex/embed-anything.git"
       branch: main
       access_token: "{{ prefect.blocks.secret.github-token }}"  # only needed for private repo
   - prefect.deployments.steps.pip_install_requirements:

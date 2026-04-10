@@ -20,17 +20,15 @@ This project was started as an experiment of how fast I could replicate the work
 │       │                                                             │
 │       ▼                                                             │
 │  ┌──────────────────────────────────────┐                           │
-│  │         Ray Cluster (EC2 Spot)       │                           │
+│  │   ECS Fargate Task (on-demand)       │                           │
+│  │   2 vCPU / 8 GB — $0 when idle      │                           │
 │  │                                      │                           │
-│  │  Head node (t3.medium)               │                           │
-│  │    └─ Ray GCS + Dashboard (:8265)    │                           │
-│  │                                      │                           │
-│  │  Worker nodes (t3.small, ASG Spot)   │                           │
-│  │    └─ EmbedBatch actors              │                           │
-│  │         ├─ fetch image from S3       │                           │
-│  │         └─ embed (CLIP / Bedrock /   │                           │
-│  │              SentenceTransformers /  │                           │
-│  │              OpenAI)                 │                           │
+│  │   Ray local mode (single container)  │                           │
+│  │     └─ EmbedBatch actors             │                           │
+│  │          ├─ fetch image from S3      │                           │
+│  │          └─ embed (CLIP / Bedrock /  │                           │
+│  │               SentenceTransformers / │                           │
+│  │               OpenAI)               │                           │
 │  └──────────────┬───────────────────────┘                           │
 │                 │ upsert vectors                                     │
 │                 ▼                                                    │
@@ -44,7 +42,8 @@ This project was started as an experiment of how fast I could replicate the work
 │                 ▼                                                    │
 │  ┌──────────────────────────┐                                        │
 │  │  embed-api (ECS Fargate) │                                        │
-│  │  FastAPI + ALB           │                                        │
+│  │  FastAPI, direct public  │                                        │
+│  │  IP, port 8080           │                                        │
 │  │  POST /search/text       │                                        │
 │  │  POST /search/image      │                                        │
 │  │  GET  /admin/indices     │                                        │
@@ -52,8 +51,12 @@ This project was started as an experiment of how fast I could replicate the work
 │                                                                     │
 │  ECR  — container images for pipeline + api                         │
 │  Secrets Manager — DB password                                      │
-│  CloudWatch Logs — API task logs                                     │
+│  CloudWatch Logs — pipeline + API task logs                         │
 └─────────────────────────────────────────────────────────────────────┘
+
+Orchestration: Prefect Managed (free tier)
+  Prefect Cloud triggers the ECS Fargate task via boto3 and polls for
+  completion — no persistent infrastructure required outside of run time.
 ```
 
 ---
@@ -99,12 +102,12 @@ class VectorStore(ABC):
 
 Swap backends by changing `STORE_TYPE=pgvector|pinecone|opensearch`.
 
-### Ray for parallel processing
+### Ray for parallel processing (local mode inside ECS)
 
-- **Stateful actors** keep models loaded in GPU/CPU memory across batches (no per-batch reload).
+- **Stateful actors** keep models loaded in CPU memory across batches (no per-batch reload).
 - **ray.data** pipelines handle S3 prefetch and back-pressure automatically.
-- Spot instance ASG scales workers to 0 when idle.
-- Head node exposes Ray Dashboard at `:8265` for observability.
+- Ray runs in **local mode** (`RAY_ADDRESS=local`) inside a single 2 vCPU / 8 GB Fargate container — no persistent cluster, zero cost when idle.
+- The ECS task is launched on-demand by Prefect and terminates when the job completes.
 
 ### Input: Athena query or Parquet
 
@@ -146,30 +149,31 @@ docker push <ecr-api-url>:latest
 
 ### 3. Run a pipeline job
 
-SSH or SSM to the Ray head node, then:
+Trigger via Prefect (preferred) or the AWS CLI directly.
 
+**Via Prefect:**
 ```bash
-pip install embed-pipeline
+prefect deployment run 'embed-pipeline/managed-dev' \
+  --param athena_database=my_catalog \
+  --param "athena_query=SELECT id, image_s3_uri, title, description FROM items LIMIT 1000" \
+  --param pipeline_index=items \
+  --param ecs_subnet_id=subnet-xxx \
+  --param ecs_security_group_id=sg-xxx
+```
 
-export ATHENA_DATABASE=my_catalog
-export ATHENA_QUERY="SELECT id, image_s3_uri, title, description FROM items LIMIT 1000"
-export ATHENA_RESULTS_BUCKET=my-athena-results-bucket
-export ATHENA_ID_COLUMN=id
-export ATHENA_IMAGE_URI_COLUMN=image_s3_uri
-export ATHENA_TEXT_COLUMNS=title,description
-
-export PROVIDER_TYPE=clip
-export PROVIDER_MODEL_NAME=ViT-B-32
-
-export STORE_TYPE=pgvector
-export STORE_DIMENSION=512
-export STORE_PGVECTOR_DSN="postgresql://embedadmin:PASSWORD@<rds-endpoint>/embeddings"
-
-export PIPELINE_INDEX=items
-export PIPELINE_RUN_ID=run-001
-export RAY_ADDRESS=auto
-
-python -m embed_pipeline.main
+**Via AWS CLI directly:**
+```bash
+aws ecs run-task \
+  --cluster ea-dev-pipeline-cluster \
+  --task-definition ea-dev-pipeline \
+  --launch-type FARGATE \
+  --network-configuration 'awsvpcConfiguration={subnets=["subnet-xxx"],securityGroups=["sg-xxx"],assignPublicIp="ENABLED"}' \
+  --overrides '{"containerOverrides":[{"name":"embed-pipeline","environment":[
+    {"name":"ATHENA_DATABASE","value":"my_catalog"},
+    {"name":"ATHENA_QUERY","value":"SELECT id, image_s3_uri FROM items LIMIT 1000"},
+    {"name":"PIPELINE_INDEX","value":"items"},
+    {"name":"PIPELINE_RUN_ID","value":"run-001"}
+  ]}]}'
 ```
 
 ### 4. Search
