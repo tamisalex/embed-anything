@@ -138,13 +138,13 @@ aws ecr get-login-password --region us-east-1 \
 
 # Build from repo root (Dockerfiles use COPY paths relative to root)
 docker build -f packages/embed-pipeline/Dockerfile \
-  --build-arg PROVIDER=clip -t <ecr-pipeline-url>:latest .
+  --build-arg PROVIDER=clip -t embed-anything/pipeline:latest .
 
 docker build -f packages/embed-api/Dockerfile \
-  --build-arg PROVIDER=clip -t <ecr-api-url>:latest .
+  --build-arg PROVIDER=clip -t embed-anything/api:latest .
 
-docker push <ecr-pipeline-url>:latest
-docker push <ecr-api-url>:latest
+docker push embed-anything/pipeline:latest
+docker push embed-anything/api:latest
 ```
 
 ### 3. Run a pipeline job

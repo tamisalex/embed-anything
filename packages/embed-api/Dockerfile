@@ -21,12 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir hatchling
 
 COPY packages/embed-core ./embed-core
-RUN pip install --no-cache-dir --prefix=/install \
-        "./embed-core[${PROVIDER}]"
-
 COPY packages/embed-api ./embed-api
+
 RUN pip install --no-cache-dir --prefix=/install \
-        "./embed-api"
+    "./embed-core[${PROVIDER}]" \
+    "./embed-api"
 
 # ---- runtime ---------------------------------------------------------------
 FROM python:${PYTHON_VERSION}-slim AS runtime

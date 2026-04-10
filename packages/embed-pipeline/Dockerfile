@@ -29,15 +29,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install pip tools
 RUN pip install --no-cache-dir hatchling
 
-# Copy and install embed-core with requested provider extras
 COPY packages/embed-core ./embed-core
-RUN pip install --no-cache-dir --prefix=/install \
-        "./embed-core[${PROVIDER}]"
-
-# Copy and install embed-pipeline
 COPY packages/embed-pipeline ./embed-pipeline
+
 RUN pip install --no-cache-dir --prefix=/install \
-        "./embed-pipeline"
+    "./embed-core[${PROVIDER}]" \
+    "./embed-pipeline"
 
 # ---- runtime ---------------------------------------------------------------
 FROM python:${PYTHON_VERSION}-slim AS runtime
