@@ -132,6 +132,19 @@ module "pipeline_task" {
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
+# GitHub Actions OIDC — federated identity for CI/CD (ECR push)
+# ---------------------------------------------------------------------------
+
+module "github_oidc" {
+  source = "../../modules/github-oidc"
+
+  name                = local.name
+  github_repo         = "tamisalex/embed-anything"
+  ecr_repository_arns = values(module.ecr.repository_arns)
+  tags                = local.common_tags
+}
+
+# ---------------------------------------------------------------------------
 # Prefect OIDC — federated identity for Prefect Managed work pool
 # ---------------------------------------------------------------------------
 

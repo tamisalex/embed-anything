@@ -23,29 +23,30 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4 # More information on this action can be found below in the 'AWS Credentials' section
         with:
-          role-to-assume: arn:aws:iam::495199591388:role/embed-everything-github-action
+          role-to-assume: arn:aws:iam::495199591388:role/ea-dev-github-actions
           aws-region: us-east-1
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build embed-anything/pipeline
+      - name: Build embed-anything/embed-pipeline
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: embed-anything/pipeline
+          REPOSITORY: embed-anything/embed-pipeline
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -f packages/embed-api/Dockerfile --build-arg PROVIDER=clip -t $REPOSITORY:latest .
+          docker build -f packages/embed-pipeline/Dockerfile --build-arg PROVIDER=clip -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
- 
+          docker push $REGISTRY/$REPOSITORY:latest
 
-      - name: Build embed-anything/api
+      - name: Build embed-anything/embed-api
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: embed-anything/api
+          REPOSITORY: embed-anything/embed-api
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -f packages/embed-api/Dockerfile --build-arg PROVIDER=clip -t $REPOSITORY:latest .
+          docker build -f packages/embed-api/Dockerfile --build-arg PROVIDER=clip -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY/$REPOSITORY:latest
 

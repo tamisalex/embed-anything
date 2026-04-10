@@ -59,3 +59,8 @@ output "prefect_runner_role_arn" {
   description = "Paste this into create_prefect_blocks.py as ROLE_ARN — no static keys needed"
   value       = module.prefect_oidc.role_arn
 }
+
+output "github_actions_role_arn" {
+  description = "Set as ROLE_ARN in .github/workflows/docker_build_action.yaml"
+  value       = module.github_oidc.role_arn
+}
