@@ -16,9 +16,17 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    steps:                         # List of steps in the job
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/powershell \
+            /usr/share/swift /usr/local/.ghcup
+          docker image prune -af
+          df -h
+
       - name: Checkout code
-        uses: actions/checkout@v4  # Use a pre-built action
+        uses: actions/checkout@v4
       
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4 # More information on this action can be found below in the 'AWS Credentials' section
