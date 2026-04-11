@@ -63,10 +63,9 @@ variable "store_dimension" {
   default = 512
 }
 
-variable "store_dsn" {
-  type      = string
-  sensitive = true
-  default   = ""
+variable "store_dsn_secret_arn" {
+  description = "Secrets Manager ARN for the full pgvector DSN — injected by ECS at startup"
+  type        = string
 }
 
 variable "secrets_arns" {

@@ -140,6 +140,21 @@ resource "aws_iam_role_policy_attachment" "task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# ECS secrets injection uses the execution role — not the task role
+resource "aws_iam_role_policy" "task_execution_secrets" {
+  name = "api-exec-secrets"
+  role = aws_iam_role.task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = [var.store_dsn_secret_arn]
+    }]
+  })
+}
+
 resource "aws_iam_role" "task" {
   name = "${var.name}-api-task-role"
 
@@ -161,20 +176,20 @@ resource "aws_iam_role_policy" "task_inline" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
+    Statement = concat(
+      length(var.secrets_arns) > 0 ? [{
         Sid      = "SecretsRead"
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
         Resource = var.secrets_arns
-      },
-      {
+      }] : [],
+      [{
         Sid      = "BedrockInvoke"
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
         Resource = "*"
-      },
-    ]
+      }]
+    )
   })
 }
 
@@ -221,10 +236,13 @@ resource "aws_ecs_task_definition" "api" {
       { name = "PROVIDER_MODEL_NAME", value = var.provider_model_name },
       { name = "PROVIDER_PRETRAINED", value = var.provider_pretrained },
       { name = "PROVIDER_DEVICE",     value = "cpu" },
-      { name = "STORE_TYPE",          value = var.store_type },
-      { name = "STORE_DIMENSION",     value = tostring(var.store_dimension) },
-      { name = "STORE_PGVECTOR_DSN",  value = var.store_dsn },
+      { name = "STORE_TYPE",      value = var.store_type },
+      { name = "STORE_DIMENSION", value = tostring(var.store_dimension) },
       { name = "API_LOG_LEVEL",       value = "INFO" },
+    ]
+
+    secrets = [
+      { name = "STORE_PGVECTOR_DSN", valueFrom = var.store_dsn_secret_arn }
     ]
 
     logConfiguration = {

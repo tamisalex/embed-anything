@@ -55,7 +55,7 @@ module "networking" {
   name               = local.name
   vpc_cidr           = "10.0.0.0/16"
   az_count           = 2
-  enable_nat_gateway = false  # keep costs down; all nodes in public subnets
+  enable_nat_gateway = false
   tags               = local.common_tags
 }
 
@@ -112,14 +112,13 @@ module "pipeline_task" {
 
   rds_security_group_id = module.rds.security_group_id
   enable_rds_access     = true
-  secrets_arns          = [module.rds.password_secret_arn]
 
   provider_type       = var.provider_type
   provider_model_name = var.provider_model_name
   provider_pretrained = var.provider_pretrained
   store_type          = "pgvector"
   store_dimension     = var.embedding_dimension
-  store_dsn           = "postgresql://${module.rds.db_username}:PLACEHOLDER@${module.rds.endpoint}/${module.rds.db_name}"
+  store_dsn_secret_arn = module.rds.dsn_secret_arn
 
   task_cpu    = 2048  # 2 vCPU — comfortable for CLIP + Ray local
   task_memory = 8192  # 8 GB
@@ -180,9 +179,7 @@ module "ecs_api" {
   provider_pretrained  = var.provider_pretrained
   store_type           = "pgvector"
   store_dimension      = var.embedding_dimension
-  store_dsn     = "postgresql://${module.rds.db_username}:PLACEHOLDER@${module.rds.endpoint}/${module.rds.db_name}"
-
-  secrets_arns  = [module.rds.password_secret_arn]
+  store_dsn_secret_arn = module.rds.dsn_secret_arn
   desired_count = 1
   enable_alb    = false
   allowed_cidr  = var.my_ip_cidr

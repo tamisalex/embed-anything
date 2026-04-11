@@ -55,6 +55,11 @@ output "rds_password_secret_arn" {
   value = module.rds.password_secret_arn
 }
 
+output "rds_dsn_secret_arn" {
+  description = "Secrets Manager ARN for the full DSN (useful for local testing or other consumers)"
+  value       = module.rds.dsn_secret_arn
+}
+
 output "prefect_runner_role_arn" {
   description = "Paste this into create_prefect_blocks.py as ROLE_ARN — no static keys needed"
   value       = module.prefect_oidc.role_arn

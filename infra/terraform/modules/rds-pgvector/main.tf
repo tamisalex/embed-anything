@@ -51,6 +51,20 @@ resource "aws_secretsmanager_secret_version" "db_password" {
   secret_string = random_password.db.result
 }
 
+# Full DSN secret — injected by ECS at container startup via secrets block.
+# Updating this secret (e.g. password rotation) does not require a new task
+# definition revision or an ECS redeploy; containers pick it up on next start.
+resource "aws_secretsmanager_secret" "db_dsn" {
+  name                    = "${var.name}/rds/dsn"
+  recovery_window_in_days = 0
+  tags                    = var.tags
+}
+
+resource "aws_secretsmanager_secret_version" "db_dsn" {
+  secret_id     = aws_secretsmanager_secret.db_dsn.id
+  secret_string = "postgresql://${var.db_username}:${random_password.db.result}@${aws_db_instance.main.endpoint}/${var.db_name}"
+}
+
 resource "aws_db_instance" "main" {
   identifier        = "${var.name}-pg"
   engine            = "postgres"

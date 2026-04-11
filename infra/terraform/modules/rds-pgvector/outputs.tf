@@ -19,8 +19,7 @@ output "security_group_id" {
   value = aws_security_group.rds.id
 }
 
-output "dsn_template" {
-  description = "DSN with placeholder password — substitute from Secrets Manager at runtime"
-  value = "postgresql://${aws_db_instance.main.username}:PLACEHOLDER@${aws_db_instance.main.endpoint}/${aws_db_instance.main.db_name}"
-  sensitive = true
+output "dsn_secret_arn" {
+  description = "ARN of the Secrets Manager secret holding the full DSN — pass to ECS secrets injection"
+  value       = aws_secretsmanager_secret.db_dsn.arn
 }

@@ -84,6 +84,21 @@ resource "aws_iam_role_policy_attachment" "task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# ECS secrets injection uses the execution role — not the task role
+resource "aws_iam_role_policy" "task_execution_secrets" {
+  name = "pipeline-exec-secrets"
+  role = aws_iam_role.task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = [var.store_dsn_secret_arn]
+    }]
+  })
+}
+
 resource "aws_iam_role" "task" {
   name = "${var.name}-pipeline-task-role"
 
@@ -139,12 +154,6 @@ resource "aws_iam_role_policy" "task_inline" {
         Resource = "*"
       },
       {
-        Sid    = "SecretsRead"
-        Effect = "Allow"
-        Action = ["secretsmanager:GetSecretValue"]
-        Resource = var.secrets_arns
-      },
-      {
         Sid    = "BedrockInvoke"
         Effect = "Allow"
         Action = ["bedrock:InvokeModel"]
@@ -192,9 +201,8 @@ resource "aws_ecs_task_definition" "pipeline" {
       { name = "PROVIDER_DEVICE",     value = "cpu" },
 
       # Store
-      { name = "STORE_TYPE",          value = var.store_type },
-      { name = "STORE_DIMENSION",     value = tostring(var.store_dimension) },
-      { name = "STORE_PGVECTOR_DSN",  value = var.store_dsn },
+      { name = "STORE_TYPE",      value = var.store_type },
+      { name = "STORE_DIMENSION", value = tostring(var.store_dimension) },
 
       # Athena defaults (override per job via --overrides)
       { name = "ATHENA_RESULTS_BUCKET",  value = var.athena_results_bucket },
@@ -209,6 +217,10 @@ resource "aws_ecs_task_definition" "pipeline" {
 
       # Pipeline
       { name = "PIPELINE_LOG_LEVEL", value = "INFO" },
+    ]
+
+    secrets = [
+      { name = "STORE_PGVECTOR_DSN", valueFrom = var.store_dsn_secret_arn }
     ]
 
     logConfiguration = {
