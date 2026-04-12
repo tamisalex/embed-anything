@@ -150,7 +150,7 @@ resource "aws_iam_role_policy" "task_execution_secrets" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["secretsmanager:GetSecretValue"]
-      Resource = [var.store_dsn_secret_arn]
+      Resource = [var.pinecone_api_key_secret_arn]
     }]
   })
 }
@@ -232,17 +232,18 @@ resource "aws_ecs_task_definition" "api" {
     }]
 
     environment = [
-      { name = "PROVIDER_TYPE",       value = var.provider_type },
-      { name = "PROVIDER_MODEL_NAME", value = var.provider_model_name },
-      { name = "PROVIDER_PRETRAINED", value = var.provider_pretrained },
-      { name = "PROVIDER_DEVICE",     value = "cpu" },
-      { name = "STORE_TYPE",      value = var.store_type },
-      { name = "STORE_DIMENSION", value = tostring(var.store_dimension) },
-      { name = "API_LOG_LEVEL",       value = "INFO" },
+      { name = "PROVIDER_TYPE",        value = var.provider_type },
+      { name = "PROVIDER_MODEL_NAME",  value = var.provider_model_name },
+      { name = "PROVIDER_PRETRAINED",  value = var.provider_pretrained },
+      { name = "PROVIDER_DEVICE",      value = "cpu" },
+      { name = "STORE_TYPE",           value = var.store_type },
+      { name = "STORE_DIMENSION",      value = tostring(var.store_dimension) },
+      { name = "STORE_PINECONE_HOST",  value = var.pinecone_host },
+      { name = "API_LOG_LEVEL",        value = "INFO" },
     ]
 
     secrets = [
-      { name = "STORE_PGVECTOR_DSN", valueFrom = var.store_dsn_secret_arn }
+      { name = "STORE_PINECONE_API_KEY", valueFrom = var.pinecone_api_key_secret_arn }
     ]
 
     logConfiguration = {

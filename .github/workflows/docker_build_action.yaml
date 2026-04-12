@@ -58,3 +58,29 @@ jobs:
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
           docker push $REGISTRY/$REPOSITORY:latest
 
+  deploy-api:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::495199591388:role/ea-dev-github-actions
+          aws-region: us-east-1
+
+      - name: Force new ECS deployment
+        run: |
+          aws ecs update-service \
+            --cluster ea-dev-api-cluster \
+            --service ea-dev-api \
+            --force-new-deployment \
+            --region us-east-1
+
+      - name: Wait for service stability
+        run: |
+          aws ecs wait services-stable \
+            --cluster ea-dev-api-cluster \
+            --services ea-dev-api \
+            --region us-east-1

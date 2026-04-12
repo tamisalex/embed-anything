@@ -55,7 +55,7 @@ variable "provider_pretrained" {
 
 variable "store_type" {
   type    = string
-  default = "pgvector"
+  default = "pinecone"
 }
 
 variable "store_dimension" {
@@ -63,8 +63,13 @@ variable "store_dimension" {
   default = 512
 }
 
-variable "store_dsn_secret_arn" {
-  description = "Secrets Manager ARN for the full pgvector DSN — injected by ECS at startup"
+variable "pinecone_api_key_secret_arn" {
+  description = "Secrets Manager ARN for the Pinecone API key — injected by ECS at startup"
+  type        = string
+}
+
+variable "pinecone_host" {
+  description = "Pinecone index host (e.g. embed-anything-xxxxx.svc.aped-4627-b74a.pinecone.io)"
   type        = string
 }
 

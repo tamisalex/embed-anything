@@ -127,8 +127,12 @@ module "pipeline_task" {
 }
 
 # ---------------------------------------------------------------------------
-# ECS API service
+# Pinecone secret lookup
 # ---------------------------------------------------------------------------
+
+data "aws_secretsmanager_secret" "pinecone_api_key" {
+  name = "pinecone_api_key"
+}
 
 # ---------------------------------------------------------------------------
 # GitHub Actions OIDC — federated identity for CI/CD (ECR push)
@@ -174,12 +178,15 @@ module "ecs_api" {
 
   container_image = "${module.ecr.repository_urls["embed-api"]}:latest"
 
-  provider_type        = var.provider_type
-  provider_model_name  = var.provider_model_name
-  provider_pretrained  = var.provider_pretrained
-  store_type           = "pgvector"
-  store_dimension      = var.embedding_dimension
-  store_dsn_secret_arn = module.rds.dsn_secret_arn
+  provider_type       = var.provider_type
+  provider_model_name = var.provider_model_name
+  provider_pretrained = var.provider_pretrained
+  store_type          = "pinecone"
+  store_dimension     = var.embedding_dimension
+
+  pinecone_api_key_secret_arn = data.aws_secretsmanager_secret.pinecone_api_key.arn
+  pinecone_host               = "embed-anything-49vf4of.svc.aped-4627-b74a.pinecone.io"
+
   desired_count = 1
   enable_alb    = false
   allowed_cidr  = var.my_ip_cidr
