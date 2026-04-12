@@ -57,13 +57,14 @@ class ProviderConfig(BaseSettings):
 class StoreConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="STORE_", extra="ignore")
 
-    type: Literal["pgvector", "pinecone", "opensearch"] = "pgvector"
+    type: Literal["pgvector", "pinecone", "opensearch"] = "pinecone"
     dimension: int = 512
 
     pgvector_dsn: str = "postgresql://postgres:postgres@localhost:5432/embeddings"
 
     pinecone_api_key: str | None = None
     pinecone_index_name: str = "embed-anything"
+    pinecone_host: str | None = None
     pinecone_cloud: str = "aws"
     pinecone_region: str = "us-east-1"
 
@@ -79,6 +80,8 @@ class StoreConfig(BaseSettings):
             base.update(index_name=self.pinecone_index_name)
             if self.pinecone_api_key:
                 base["api_key"] = self.pinecone_api_key
+            if self.pinecone_host:
+                base["host"] = self.pinecone_host
             base.update(cloud=self.pinecone_cloud, region=self.pinecone_region)
         elif self.type == "opensearch":
             base["host"] = self.opensearch_host
@@ -160,6 +163,39 @@ class RayConfig(BaseSettings):
     num_embedding_actors: int = 4
     batch_size: int = 32
     parallelism: int = -1
+
+
+class TrackingConfig(BaseSettings):
+    """Athena Iceberg tracking tables configuration.
+
+    Tables are created in *glue_database* and stored as Iceberg Parquet
+    at *s3_location*.  Athena query results are written to *results_bucket*.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="TRACKING_", extra="ignore")
+
+    glue_database: str = "embed_tracking"
+    s3_location: str = ""   # e.g. s3://embed-anything-input-bucket/iceberg
+    results_bucket: str = ""  # S3 bucket for Athena result output
+    aws_region: str = "us-east-1"
+    workgroup: str = "primary"
+
+    @model_validator(mode="after")
+    def _require_locations(self) -> "TrackingConfig":
+        if not self.s3_location or not self.results_bucket:
+            raise ValueError(
+                "TRACKING_S3_LOCATION and TRACKING_RESULTS_BUCKET are required"
+            )
+        return self
+
+    def to_tracker_config_dict(self) -> dict[str, Any]:
+        return {
+            "glue_database": self.glue_database,
+            "s3_location": self.s3_location,
+            "results_bucket": self.results_bucket,
+            "aws_region": self.aws_region,
+            "workgroup": self.workgroup,
+        }
 
 
 class PipelineConfig(BaseSettings):

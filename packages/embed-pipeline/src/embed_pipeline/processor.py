@@ -20,14 +20,13 @@ providers the image rows are skipped with a warning.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 
 import structlog
 
 from embed_core.models import Modality, Vector
-from embed_pipeline.config import AthenaConfig, PipelineConfig, ProviderConfig, RayConfig, StoreConfig
+from embed_pipeline.config import AthenaConfig, PipelineConfig, ProviderConfig, RayConfig, StoreConfig, TrackingConfig
 from embed_pipeline.s3_reader import build_dataset
 
 logger = structlog.get_logger(__name__)
@@ -54,6 +53,9 @@ def _make_embed_batch_cls(provider_config: dict[str, Any]) -> type:
 
             self._provider = provider_from_config(provider_config)
             self._loop = asyncio.new_event_loop()
+            # Eagerly load weights from the pre-warmed disk cache so the
+            # first real batch isn't penalised by model initialisation.
+            _ = self._provider.dimension
 
         def __call__(self, batch: dict[str, Any]) -> dict[str, Any]:
             """Embed one batch.  Called by ``ray.data.map_batches``.
@@ -128,11 +130,18 @@ def _make_embed_batch_cls(provider_config: dict[str, Any]) -> type:
 def _upsert_batch(
     batch: dict[str, Any],
     store_config_dict: dict[str, Any],
+    tracker_config_dict: dict[str, Any],
     index: str,
+    run_id: str,
+    datasource: str,
 ) -> dict[str, int]:
     import asyncio
 
     from embed_core.stores.factory import store_from_config
+    from embed_pipeline.tracking import AthenaTracker
+
+    ids: list[str] = batch["id"]
+    embeddings: list[list[float]] = batch["embedding"]
 
     vectors = [
         Vector(
@@ -142,27 +151,43 @@ def _upsert_batch(
             modality=Modality(modality if modality != "multimodal" else "image"),
         )
         for id_, emb, meta, modality in zip(
-            batch["id"],
-            batch["embedding"],
+            ids,
+            embeddings,
             batch["metadata"],
             batch["modality"],
         )
         if emb  # skip rows that failed to produce an embedding
     ]
 
-    if not vectors:
-        return {"upserted": 0, "failed": 0}
-
-    async def _run() -> Any:
+    async def _upsert() -> Any:
         store = store_from_config(store_config_dict)
         await store.initialize()
         try:
-            return await store.upsert(vectors, index=index)
+            return await store.upsert(vectors, index=index) if vectors else None
         finally:
             await store.close()
 
-    result = asyncio.run(_run())
-    return {"upserted": result.upserted_count, "failed": len(result.failed_ids)}
+    result = asyncio.run(_upsert())
+    failed_ids = set(result.failed_ids) if result else set()
+
+    log_items = [
+        {
+            "item_id": id_,
+            "status": (
+                "skipped" if not emb
+                else "failed" if id_ in failed_ids
+                else "success"
+            ),
+            "error": None,
+        }
+        for id_, emb in zip(ids, embeddings)
+    ]
+    AthenaTracker(**tracker_config_dict).log_items(log_items, run_id=run_id, datasource=datasource)
+
+    upserted = result.upserted_count if result else 0
+    failed = len(result.failed_ids) if result else 0
+    skipped = sum(1 for emb in embeddings if not emb)
+    return {"upserted": upserted, "failed": failed, "skipped": skipped}
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +201,7 @@ def run_pipeline(
     store_cfg: StoreConfig,
     athena_cfg: AthenaConfig,
     ray_cfg: RayConfig,
+    tracking_cfg: TrackingConfig,
 ) -> dict[str, int]:
     """Execute the full embed pipeline using Ray.
 
@@ -188,6 +214,8 @@ def run_pipeline(
     Returns:
         ``{"upserted": int, "failed": int}``
     """
+    from pathlib import PurePosixPath
+
     import ray
 
     log = structlog.get_logger(__name__).bind(run_id=pipeline_cfg.run_id)
@@ -203,6 +231,17 @@ def run_pipeline(
 
     provider_config_dict = provider_cfg.to_provider_config_dict()
     store_config_dict = store_cfg.to_store_config_dict()
+    tracker_config_dict = tracking_cfg.to_tracker_config_dict()
+
+    # Derive a human-readable datasource name from the S3 URI.
+    s3_uri = athena_cfg.results_s3_uri or f"athena://{athena_cfg.database}"
+    datasource = PurePosixPath(s3_uri.split("://", 1)[-1]).parent.name or s3_uri
+
+    from embed_pipeline.tracking import AthenaTracker
+    tracker = AthenaTracker(**tracker_config_dict)
+    tracker.ensure_tables()
+    tracker.register_datasource(datasource, s3_uri)
+    log.info("Datasource registered", name=datasource)
 
     log.info("Building dataset from Athena/Parquet source")
     ds = build_dataset(cfg=athena_cfg, limit=pipeline_cfg.limit)
@@ -210,9 +249,20 @@ def run_pipeline(
     count = ds.count()
     if count == 0:
         log.warning("No embeddable records — exiting")
-        return {"upserted": 0, "failed": 0}
+        return {"upserted": 0, "failed": 0, "skipped": 0}
 
     log.info("Records to embed", count=count)
+
+    # Download model weights exactly once before the actor pool starts.
+    # Actors will then load from the local disk cache — no concurrent downloads.
+    @ray.remote
+    def _warm_model_cache(provider_config: dict[str, Any]) -> None:
+        from embed_core.providers.factory import provider_from_config
+        _ = provider_from_config(provider_config).dimension  # triggers _load()
+
+    log.info("Warming model cache")
+    ray.get(_warm_model_cache.remote(provider_config_dict))
+    log.info("Model cache warm")
 
     # Embed with actor pool
     EmbedBatch = _make_embed_batch_cls(provider_config_dict)
@@ -225,17 +275,25 @@ def run_pipeline(
     # Upsert in parallel
     @ray.remote
     def upsert_remote(batch: dict[str, Any]) -> dict[str, int]:
-        return _upsert_batch(batch, store_config_dict, pipeline_cfg.index)
+        return _upsert_batch(
+            batch,
+            store_config_dict,
+            tracker_config_dict,
+            pipeline_cfg.index,
+            run_id=pipeline_cfg.run_id,
+            datasource=datasource,
+        )
 
     futures = [
         upsert_remote.remote(batch)
         for batch in embedded_ds.iter_batches(batch_size=256)
     ]
 
-    totals: dict[str, int] = {"upserted": 0, "failed": 0}
+    totals: dict[str, int] = {"upserted": 0, "failed": 0, "skipped": 0}
     for result in ray.get(futures):
         totals["upserted"] += result["upserted"]
         totals["failed"] += result["failed"]
+        totals["skipped"] += result["skipped"]
 
     log.info("Pipeline complete", **totals)
     return totals

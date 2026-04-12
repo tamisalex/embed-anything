@@ -20,6 +20,7 @@ from embed_pipeline.config import (
     ProviderConfig,
     RayConfig,
     StoreConfig,
+    TrackingConfig,
 )
 from embed_pipeline.processor import run_pipeline
 
@@ -50,6 +51,7 @@ def main() -> None:
     store_cfg = StoreConfig()
     athena_cfg = AthenaConfig()
     ray_cfg = RayConfig()
+    tracking_cfg = TrackingConfig()
 
     try:
         totals = run_pipeline(
@@ -58,6 +60,7 @@ def main() -> None:
             store_cfg=store_cfg,
             athena_cfg=athena_cfg,
             ray_cfg=ray_cfg,
+            tracking_cfg=tracking_cfg,
         )
         log.info("Finished", **totals)
     except Exception:

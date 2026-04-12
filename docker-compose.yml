@@ -1,0 +1,60 @@
+services:
+
+  api:
+    build:
+      context: .
+      dockerfile: packages/embed-api/Dockerfile
+      args:
+        PROVIDER: clip
+    ports:
+      - "8080:8080"
+    environment:
+      PROVIDER_TYPE: clip
+      PROVIDER_MODEL_NAME: ViT-B-32
+      PROVIDER_PRETRAINED: openai
+      PROVIDER_DEVICE: cpu
+      STORE_TYPE: pinecone
+      STORE_DIMENSION: "512"
+      STORE_PINECONE_API_KEY: ${PINECONE_API_KEY}
+      STORE_PINECONE_INDEX_NAME: embed-anything
+      STORE_PINECONE_HOST: embed-anything-49vf4of.svc.aped-4627-b74a.pinecone.io
+      STORE_PINECONE_CLOUD: aws
+      STORE_PINECONE_REGION: us-east-1
+      API_LOG_LEVEL: INFO
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: packages/embed-pipeline/Dockerfile
+      args:
+        PROVIDER: clip
+    profiles: ["pipeline"]
+    environment:
+      PROVIDER_TYPE: clip
+      PROVIDER_MODEL_NAME: ViT-B-32
+      PROVIDER_PRETRAINED: openai
+      PROVIDER_DEVICE: cpu
+      STORE_TYPE: pinecone
+      STORE_DIMENSION: "512"
+      STORE_PINECONE_API_KEY: ${PINECONE_API_KEY}
+      STORE_PINECONE_INDEX_NAME: embed-anything
+      STORE_PINECONE_HOST: embed-anything-49vf4of.svc.aped-4627-b74a.pinecone.io
+      STORE_PINECONE_CLOUD: aws
+      STORE_PINECONE_REGION: us-east-1
+      TRACKING_GLUE_DATABASE: embed_tracking
+      TRACKING_S3_LOCATION: ${TRACKING_S3_LOCATION}
+      TRACKING_RESULTS_BUCKET: ${TRACKING_RESULTS_BUCKET}
+      TRACKING_AWS_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+      RAY_ADDRESS: local
+      RAY_NUM_EMBEDDING_ACTORS: "2"
+      RAY_BATCH_SIZE: "16"
+      PIPELINE_LOG_LEVEL: INFO
+      PIPELINE_RUN_ID: ${PIPELINE_RUN_ID:-local-run}
+      ATHENA_ID_COLUMN: id
+      ATHENA_IMAGE_URI_COLUMN: image_s3_uri
+      ATHENA_TEXT_COLUMNS: title
+      ATHENA_RESULTS_S3_URI: ${ATHENA_RESULTS_S3_URI}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}

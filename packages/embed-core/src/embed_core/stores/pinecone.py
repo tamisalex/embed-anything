@@ -38,6 +38,7 @@ class PineconeVectorStore(VectorStore):
         self,
         api_key: str | None = None,
         index_name: str = "embed-anything",
+        host: str | None = None,
         dimension: int = 512,
         metric: str = "cosine",
         cloud: str = "aws",
@@ -45,6 +46,7 @@ class PineconeVectorStore(VectorStore):
     ) -> None:
         self._api_key = api_key
         self._index_name = index_name
+        self._host = host
         self._dimension = dimension
         self._metric = metric
         self._cloud = cloud
@@ -65,17 +67,22 @@ class PineconeVectorStore(VectorStore):
 
         pc = Pinecone(**kwargs)
 
-        existing = {idx.name for idx in pc.list_indexes()}
-        if self._index_name not in existing:
-            logger.info("Creating Pinecone index '%s'", self._index_name)
-            pc.create_index(
-                name=self._index_name,
-                dimension=self._dimension,
-                metric=self._metric,
-                spec=ServerlessSpec(cloud=self._cloud, region=self._region),
-            )
-        self._index = pc.Index(self._index_name)
-        logger.info("Pinecone index '%s' ready", self._index_name)
+        if self._host:
+            # Connect directly — no list_indexes round-trip needed.
+            self._index = pc.Index(host=self._host)
+            logger.info("Pinecone index connected via host '%s'", self._host)
+        else:
+            existing = {idx.name for idx in pc.list_indexes()}
+            if self._index_name not in existing:
+                logger.info("Creating Pinecone index '%s'", self._index_name)
+                pc.create_index(
+                    name=self._index_name,
+                    dimension=self._dimension,
+                    metric=self._metric,
+                    spec=ServerlessSpec(cloud=self._cloud, region=self._region),
+                )
+            self._index = pc.Index(self._index_name)
+            logger.info("Pinecone index '%s' ready", self._index_name)
 
     async def upsert(self, vectors: list[Vector], index: str = "default") -> UpsertResult:
         if self._index is None:
