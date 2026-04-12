@@ -144,6 +144,6 @@ See [QUICKSTART.md](QUICKSTART.md) for the one-time manual setup steps and how t
 
 | `STORE_TYPE` | Notes | Key env vars |
 |-------------|-------|-------------|
+| `pinecone` | Serverless, free tier — **default** | `STORE_PINECONE_API_KEY`, `STORE_PINECONE_HOST` |
 | `pgvector` | Free-tier eligible (RDS t4g.micro) | `STORE_PGVECTOR_DSN` |
-| `pinecone` | Serverless, free tier available | `STORE_PINECONE_API_KEY`, `STORE_PINECONE_INDEX_NAME` |
 | `opensearch` | t3.small.search free for 750 hrs | `STORE_OPENSEARCH_HOST`, `STORE_OPENSEARCH_USERNAME` |
