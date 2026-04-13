@@ -5,30 +5,24 @@
 #   - Flow submits your ECS task for the heavy embedding work
 #   - No persistent infrastructure required
 #
-# One-time setup:
-#   1. prefect cloud login
-#   2. Create an AwsCredentials block (see setup guide below)
-#   3. prefect deploy --all
+# Deploy:
+#   cd packages/embed-pipeline
+#   prefect cloud login
+#   prefect deploy --all
 #
-# Trigger a run:
-#   prefect deployment run 'embed-pipeline/managed-dev' \
-#     --param athena_database=my_catalog \
-#     --param athena_query="SELECT id, image_s3_uri FROM items LIMIT 1000" \
-#     --param pipeline_index=items \
-#     --param ecs_subnet_id=subnet-xxx \
-#     --param ecs_security_group_id=sg-xxx
+# Trigger a run from CLI:
+#   prefect deployment run 'embed-pipeline/managed-dev'
+#
+# Or trigger from Prefect Cloud UI with custom parameters.
 
 name: embed-pipeline
 
-# Pull flow code from your GitHub repo on each run
 pull:
   - prefect.deployments.steps.git_clone:
       repository: "https://github.com/tamisalex/embed-anything.git"
       branch: main
-      access_token: "{{ prefect.blocks.secret.github-token }}"  # only needed for private repo
   - prefect.deployments.steps.pip_install_requirements:
       requirements_file: packages/embed-pipeline/requirements-prefect.txt
-      directory: packages/embed-pipeline
   - prefect.deployments.steps.set_working_directory:
       directory: packages/embed-pipeline
 
@@ -39,24 +33,13 @@ deployments:
     entrypoint: src/embed_pipeline/flow.py:embed_pipeline_flow
 
     work_pool:
-      name: my-managed-pool       # create this in Prefect Cloud UI:
-      # Workspaces -> Work Pools -> Create -> type: "Prefect Managed"
+      name: embed-anything
       work_queue_name: default
 
-    # Default parameter values — all editable in the Prefect Cloud UI at run time
+    # Infra/store config is in the Prefect Variable `embed_pipeline_config` —
+    # set it once in the UI, override individual runs with these params only.
     parameters:
-      ecs_cluster: "ea-dev-pipeline-cluster"
-      ecs_task_definition: "ea-dev-pipeline"
-      ecs_subnet_id: ""           # fill in after tofu apply: tofu output (use a public subnet)
-      ecs_security_group_id: ""   # fill in after tofu apply: tofu output pipeline_task_sg_id
-      aws_credentials_block: "embed-anything-aws"
+      athena_results_s3_uri: "s3://embed-anything-input-bucket/food101-sample"
       pipeline_index: "default"
+      pipeline_run_id: "prefect"
       pipeline_limit: 0
-      poll_interval_seconds: 30
-      timeout_seconds: 7200
-
-    # Optional schedule — uncomment to run nightly at 2am UTC
-    # schedules:
-    #   - cron: "0 2 * * *"
-    #     timezone: "UTC"
-    #     active: true

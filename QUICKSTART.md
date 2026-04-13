@@ -94,7 +94,21 @@ directly via boto3.
 
 ---
 
-## 7. Load sample data to S3
+## 7. Create the Prefect pipeline config variable
+
+Run once after `prefect cloud login`.
+
+1. Fill in your Pinecone host in [`packages/embed-pipeline/config/pipeline_config.json`](packages/embed-pipeline/config/pipeline_config.json)
+2. Push it to Prefect Cloud:
+   ```bash
+   prefect variable set embed_pipeline_config "$(cat packages/embed-pipeline/config/pipeline_config.json)"
+   ```
+
+Edit the variable any time in the Prefect Cloud UI (Variables) without redeploying.
+
+---
+
+## 8. Load sample data to S3
 
 ```bash
 cd scripts
@@ -109,7 +123,7 @@ reads as its input.
 
 ---
 
-## 8. Create the shared Python environment
+## 9. Create the shared Python environment
 
 From the repo root:
 
@@ -120,21 +134,18 @@ uv pip install -e packages/embed-core -e packages/embed-pipeline
 
 ---
 
-## 9. Run the pipeline
+## 10. Run the pipeline
 
 ```bash
-.venv/bin/python -c "
-from embed_pipeline.flow import embed_pipeline_flow
+.venv/bin/python -m embed_pipeline.flow
+```
 
-embed_pipeline_flow(
-    athena_results_s3_uri='s3://embed-anything-input-bucket/food101-sample/manifest.parquet',
-    tracking_s3_location='s3://embed-anything-input-bucket/iceberg',
-    tracking_results_bucket='embed-anything-input-bucket',
-    pipeline_index='food101',
-    pipeline_run_id='food101-run-001',
-    ecs_subnet_id='SUBNET_ID',   # from: tofu output pipeline_task_sg_id
-)
-"
+Or trigger a run via the Prefect Cloud UI after deploying:
+
+```bash
+cd packages/embed-pipeline
+prefect deploy --all
+prefect deployment run 'embed-pipeline/managed-dev'
 ```
 
 Monitor progress in [Prefect Cloud](https://app.prefect.cloud) and
