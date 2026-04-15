@@ -98,7 +98,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Install prefect
-        run: uv pip install --system prefect
+        run: uv tool install prefect
 
       - name: Set Prefect pipeline config variable
         working-directory: packages/embed-pipeline
