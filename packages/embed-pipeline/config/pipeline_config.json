@@ -6,7 +6,7 @@
   "aws_region":              "us-east-1",
   "pinecone_secret_name":    "pinecone_api_key",
   "pinecone_index_name":     "embed-anything",
-  "pinecone_host":           "YOUR_PINECONE_HOST",
+  "pinecone_host":           "https://embed-anything-49vf4of.svc.aped-4627-b74a.pinecone.io",
   "pinecone_cloud":          "aws",
   "pinecone_region":         "us-east-1",
   "store_dimension":         512,
@@ -16,4 +16,6 @@
   "athena_id_column":        "id",
   "athena_image_uri_column": "image_s3_uri",
   "athena_text_columns":     "title",
+  "poll_interval_seconds":   30,
+  "timeout_seconds":         7200
 }

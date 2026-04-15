@@ -87,6 +87,15 @@ resource "aws_iam_role_policy" "ecr_push" {
         ]
         Resource = var.ecr_repository_arns
       },
+      {
+        Sid    = "ECSUpdateService"
+        Effect = "Allow"
+        Action = [
+          "ecs:UpdateService",
+          "ecs:DescribeServices",
+        ]
+        Resource = "*"
+      },
     ]
   })
 }
