@@ -25,16 +25,6 @@ def load_config() -> dict:
     return json.loads(raw) if isinstance(raw, str) else raw
 
 
-@task(name="load-secrets")
-def load_secrets(secret_name: str, aws_region: str = "us-east-1") -> dict[str, str]:
-    """Load the Pinecone API key from AWS Secrets Manager."""
-    logger = get_run_logger()
-    client = boto3.client("secretsmanager", region_name=aws_region)
-    resp = client.get_secret_value(SecretId=secret_name)
-    logger.info("Secret '%s' loaded from Secrets Manager", secret_name)
-    return {"PINECONE_API_KEY": resp["SecretString"]}
-
-
 @task(name="submit-ecs-task", retries=2, retry_delay_seconds=30)
 def submit_ecs_task(
     cluster: str,
@@ -98,13 +88,10 @@ def embed_pipeline_flow(
 
     cfg = load_config()
 
-    secrets = load_secrets(cfg["pinecone_secret_name"], aws_region=cfg["aws_region"])
-
     container_env: dict[str, str] = {
-        # Vector store
+        # Vector store — STORE_PINECONE_API_KEY injected by ECS task definition via Secrets Manager
         "STORE_TYPE":                 "pinecone",
         "STORE_DIMENSION":            str(cfg["store_dimension"]),
-        "STORE_PINECONE_API_KEY":     secrets["PINECONE_API_KEY"],
         "STORE_PINECONE_INDEX_NAME":  cfg["pinecone_index_name"],
         "STORE_PINECONE_HOST":        cfg["pinecone_host"],
         "STORE_PINECONE_CLOUD":       cfg["pinecone_cloud"],

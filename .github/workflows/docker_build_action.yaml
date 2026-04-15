@@ -84,3 +84,30 @@ jobs:
             --cluster ea-dev-api-cluster \
             --services ea-dev-api \
             --region us-east-1
+
+  deploy-prefect:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install prefect
+        run: uv pip install --system prefect
+
+      - name: Set Prefect pipeline config variable
+        working-directory: packages/embed-pipeline
+        env:
+          PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
+        run: prefect variable set embed_pipeline_config "$(cat config/pipeline_config.json)" --overwrite
+
+      - name: Deploy Prefect flow
+        working-directory: packages/embed-pipeline
+        env:
+          PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
+        run: prefect deploy --all --no-prompt
