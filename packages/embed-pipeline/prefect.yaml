@@ -21,10 +21,10 @@ pull:
   - prefect.deployments.steps.git_clone:
       repository: "https://github.com/tamisalex/embed-anything.git"
       branch: main
-  - prefect.deployments.steps.pip_install_requirements:
-      requirements_file: packages/embed-pipeline/requirements-prefect.txt
   - prefect.deployments.steps.set_working_directory:
       directory: packages/embed-pipeline
+  - prefect.deployments.steps.pip_install_requirements:
+      requirements_file: requirements-prefect.txt
 
 deployments:
   - name: managed-dev
