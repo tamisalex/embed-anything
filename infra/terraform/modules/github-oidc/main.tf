@@ -66,3 +66,21 @@ resource "aws_iam_role_policy_attachment" "ecr_power_user" {
   role       = aws_iam_role.github_actions.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
 }
+
+resource "aws_iam_role_policy" "ecs_deploy" {
+  name = "ecs-deploy"
+  role = aws_iam_role.github_actions.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid    = "ECSUpdateService"
+      Effect = "Allow"
+      Action = [
+        "ecs:UpdateService",
+        "ecs:DescribeServices",
+      ]
+      Resource = "*"
+    }]
+  })
+}
