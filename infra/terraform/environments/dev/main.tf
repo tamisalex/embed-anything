@@ -116,9 +116,10 @@ module "pipeline_task" {
   provider_type       = var.provider_type
   provider_model_name = var.provider_model_name
   provider_pretrained = var.provider_pretrained
-  store_type          = "pgvector"
-  store_dimension     = var.embedding_dimension
-  store_dsn_secret_arn = module.rds.dsn_secret_arn
+  store_type                 = "pgvector"
+  store_dimension            = var.embedding_dimension
+  store_dsn_secret_arn       = module.rds.dsn_secret_arn
+  pinecone_api_key_secret_arn = data.aws_secretsmanager_secret.pinecone_api_key.arn
 
   task_cpu    = 2048  # 2 vCPU — comfortable for CLIP + Ray local
   task_memory = 8192  # 8 GB

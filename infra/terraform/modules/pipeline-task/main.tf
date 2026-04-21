@@ -92,9 +92,12 @@ resource "aws_iam_role_policy" "task_execution_secrets" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect   = "Allow"
-      Action   = ["secretsmanager:GetSecretValue"]
-      Resource = [var.store_dsn_secret_arn]
+      Effect = "Allow"
+      Action = ["secretsmanager:GetSecretValue"]
+      Resource = compact([
+        var.store_dsn_secret_arn,
+        var.pinecone_api_key_secret_arn,
+      ])
     }]
   })
 }
@@ -124,7 +127,7 @@ resource "aws_iam_role_policy" "task_inline" {
       {
         Sid    = "S3ReadWrite"
         Effect = "Allow"
-        Action = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"]
+        Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
         Resource = [
           "arn:aws:s3:::${var.data_bucket}",
           "arn:aws:s3:::${var.data_bucket}/*",
@@ -144,12 +147,15 @@ resource "aws_iam_role_policy" "task_inline" {
         Resource = "*"
       },
       {
-        Sid    = "GlueReadCatalog"
+        Sid    = "GlueCatalog"
         Effect = "Allow"
         Action = [
           "glue:GetDatabase",
           "glue:GetTable",
           "glue:GetPartitions",
+          "glue:CreateDatabase",
+          "glue:CreateTable",
+          "glue:UpdateTable",
         ]
         Resource = "*"
       },
@@ -219,9 +225,10 @@ resource "aws_ecs_task_definition" "pipeline" {
       { name = "PIPELINE_LOG_LEVEL", value = "INFO" },
     ]
 
-    secrets = [
-      { name = "STORE_PGVECTOR_DSN", valueFrom = var.store_dsn_secret_arn }
-    ]
+    secrets = concat(
+      [{ name = "STORE_PGVECTOR_DSN", valueFrom = var.store_dsn_secret_arn }],
+      var.pinecone_api_key_secret_arn != "" ? [{ name = "STORE_PINECONE_API_KEY", valueFrom = var.pinecone_api_key_secret_arn }] : []
+    )
 
     logConfiguration = {
       logDriver = "awslogs"

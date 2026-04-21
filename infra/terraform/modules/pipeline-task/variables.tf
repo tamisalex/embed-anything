@@ -77,6 +77,12 @@ variable "store_dsn_secret_arn" {
   type        = string
 }
 
+variable "pinecone_api_key_secret_arn" {
+  description = "Secrets Manager ARN for the Pinecone API key — injected by ECS at startup. Leave empty if not using Pinecone."
+  type        = string
+  default     = ""
+}
+
 variable "ray_num_actors" {
   description = "Number of parallel embedding actors in Ray local mode"
   type        = number

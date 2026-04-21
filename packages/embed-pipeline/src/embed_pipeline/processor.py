@@ -49,6 +49,8 @@ def _make_embed_batch_cls(provider_config: dict[str, Any]) -> type:
         """Holds an EmbeddingProvider loaded in memory across many batches."""
 
         def __init__(self) -> None:
+            import asyncio
+
             from embed_core.providers.factory import provider_from_config
 
             self._provider = provider_from_config(provider_config)
