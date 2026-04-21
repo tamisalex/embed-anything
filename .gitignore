@@ -248,8 +248,11 @@ aws-exports.js
 *.swp
 *.swo
 
-# Claude Code local settings
-.claude/
+# Claude Code — ignore personal/ephemeral state, track shared commands
+.claude/settings.local.json
+.claude/worktrees/
+.claude/todos/
+# .claude/commands/ is intentionally tracked (shared skills infra)
 
 # Python model caches (can be large)
 .cache/huggingface/
