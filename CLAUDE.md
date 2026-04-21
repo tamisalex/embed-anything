@@ -65,3 +65,46 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+---
+
+## Project Architecture
+
+### Packages
+
+**`packages/embed-core`** — shared library, no framework dependencies
+- `providers/` — `EmbeddingProvider` ABC + implementations: `clip`, `sentence_transformers`, `bedrock`, `openai`
+- `stores/` — `VectorStore` ABC + implementations: `pgvector`, `pinecone`, `opensearch`
+- `providers/factory.py` / `stores/factory.py` — lazy-import registries keyed by `"type"` string
+
+To add a provider: implement `EmbeddingProvider` in `providers/`, register in `providers/factory.py` `_REGISTRY`.
+To add a store: implement `VectorStore` in `stores/`, register in `stores/factory.py` `_REGISTRY`.
+
+**`packages/embed-pipeline`** — Prefect + Ray ingestion pipeline
+- `flow.py` — Prefect flow entry point. Reads config from Prefect Variable `embed_pipeline_config`, submits an ECS Fargate task via `boto3`, passes all env overrides as container environment variables.
+- `processor.py` — Ray local-mode batch processor. `EmbedBatch` is a Ray stateful actor that keeps the model warm across batches.
+- `config.py` — reads all `PIPELINE_*`, `ATHENA_*`, `STORE_*`, `PROVIDER_*` env vars.
+- `tracking.py` — writes run metadata to Athena Iceberg tables via Glue catalog.
+- `config/pipeline_config.json` — infra values stored as a Prefect Variable (`embed_pipeline_config`).
+
+**`packages/embed-api`** — FastAPI search service
+- `main.py` — app factory + lifespan: provider and store loaded once at startup, attached to `app.state`.
+- `dependencies.py` — typed FastAPI dependencies that pull provider/store from `app.state`.
+- Routes: `POST /search/text`, `POST /search/image`, `GET /admin/indices`, `GET /healthz`, `GET /readyz`.
+
+### Infra (`infra/terraform/`)
+
+Modules: `networking`, `ecr`, `rds-pgvector`, `pipeline-task`, `ecs-api`, `ray-cluster`, `prefect-oidc`, `github-oidc`.
+Dev environment: `infra/terraform/environments/dev/`.
+
+`pipeline-task` — ECS Fargate task definition for the embedding pipeline. IAM roles: execution role (Secrets Manager) + task role (S3, Athena, Glue, ECR, CloudWatch). Pinecone API key is optional: pass `pinecone_api_key_secret_arn` to enable.
+
+### Key env vars (pipeline)
+
+| Prefix | Examples |
+|--------|---------|
+| `PROVIDER_*` | `PROVIDER_TYPE`, `PROVIDER_MODEL_NAME`, `PROVIDER_PRETRAINED` |
+| `STORE_*` | `STORE_TYPE`, `STORE_PINECONE_INDEX_NAME`, `STORE_PINECONE_HOST`, `STORE_PGVECTOR_DSN` |
+| `ATHENA_*` | `ATHENA_RESULTS_S3_URI`, `ATHENA_ID_COLUMN`, `ATHENA_IMAGE_URI_COLUMN`, `ATHENA_TEXT_COLUMNS` |
+| `PIPELINE_*` | `PIPELINE_INDEX`, `PIPELINE_RUN_ID`, `PIPELINE_LIMIT` |
+| `TRACKING_*` | `TRACKING_GLUE_DATABASE`, `TRACKING_S3_LOCATION`, `TRACKING_RESULTS_BUCKET` |
