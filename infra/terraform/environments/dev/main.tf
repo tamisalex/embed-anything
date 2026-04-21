@@ -141,10 +141,9 @@ data "aws_secretsmanager_secret" "pinecone_api_key" {
 module "github_oidc" {
   source = "../../modules/github-oidc"
 
-  name                = local.name
-  github_repo         = "tamisalex/embed-anything"
-  ecr_repository_arns = values(module.ecr.repository_arns)
-  tags                = local.common_tags
+  name        = local.name
+  github_repo = "tamisalex/embed-anything"
+  tags        = local.common_tags
 }
 
 # ---------------------------------------------------------------------------
