@@ -106,14 +106,15 @@ jobs:
       - name: Install prefect
         run: uv tool install prefect
 
-      - name: Set Prefect pipeline config variable
-        working-directory: packages/embed-pipeline
+      - name: Login to Prefect Cloud
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
+        run: prefect cloud login --key $PREFECT_API_KEY --workspace ${{ secrets.PREFECT_WORKSPACE }}
+
+      - name: Set Prefect pipeline config variable
+        working-directory: packages/embed-pipeline
         run: prefect variable set embed_pipeline_config "$(cat config/pipeline_config.json)" --overwrite
 
       - name: Deploy Prefect flow
         working-directory: packages/embed-pipeline
-        env:
-          PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
         run: prefect deploy --all --no-prompt
