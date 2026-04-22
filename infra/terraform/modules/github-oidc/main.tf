@@ -47,8 +47,8 @@ resource "aws_iam_role" "github_actions" {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           "token.actions.githubusercontent.com:sub" = [
-            for branch in var.allowed_branches :
-            "repo:${var.github_repo}:ref:refs/heads/${branch}"
+            "repo:${var.github_repo}:ref:refs/heads/main",
+            "repo:${var.github_repo}:pull_request",
           ]
         }
       }
