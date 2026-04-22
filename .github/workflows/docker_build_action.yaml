@@ -28,39 +28,51 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Debug OIDC token
-        run: |
-          TOKEN=$(curl -sH "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
-          echo $TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .
-
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4 # More information on this action can be found below in the 'AWS Credentials' section
+        if: github.ref == 'refs/heads/main'
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::495199591388:role/ea-dev-github-actions
           aws-region: us-east-1
 
       - name: Login to Amazon ECR
+        if: github.ref == 'refs/heads/main'
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build embed-anything/embed-pipeline
         env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REGISTRY: ${{ steps.login-ecr.outputs.registry || '495199591388.dkr.ecr.us-east-1.amazonaws.com' }}
           REPOSITORY: embed-anything/embed-pipeline
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -f packages/embed-pipeline/Dockerfile --build-arg PROVIDER=clip -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
+
+      - name: Push embed-anything/embed-pipeline
+        if: github.ref == 'refs/heads/main'
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: embed-anything/embed-pipeline
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
           docker push $REGISTRY/$REPOSITORY:latest
 
       - name: Build embed-anything/embed-api
         env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REGISTRY: ${{ steps.login-ecr.outputs.registry || '495199591388.dkr.ecr.us-east-1.amazonaws.com' }}
           REPOSITORY: embed-anything/embed-api
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -f packages/embed-api/Dockerfile --build-arg PROVIDER=clip -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
+
+      - name: Push embed-anything/embed-api
+        if: github.ref == 'refs/heads/main'
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: embed-anything/embed-api
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
           docker push $REGISTRY/$REPOSITORY:latest
 
