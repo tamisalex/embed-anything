@@ -5,7 +5,7 @@
   "ecs_security_group_id":   "sg-0a00f58ab58b353dd",
   "aws_region":              "us-east-1",
 "pinecone_index_name":     "embed-anything",
-  "pinecone_host":           "https://embed-anything-49vf4of.svc.aped-4627-b74a.pinecone.io",
+  "pinecone_host":           "embed-anything-49vf4of.svc.aped-4627-b74a.pinecone.io",
   "pinecone_cloud":          "aws",
   "pinecone_region":         "us-east-1",
   "store_dimension":         512,

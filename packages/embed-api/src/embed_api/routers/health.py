@@ -4,7 +4,7 @@ Health and readiness endpoints — used by ECS / ALB target group checks.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 router = APIRouter(tags=["observability"])
@@ -29,10 +29,8 @@ async def healthz() -> HealthResponse:
     description="Returns 200 once the provider model and store connection are ready.",
 )
 async def readyz(
-    request: "Request",  # type: ignore[name-defined]  # noqa: F821
+    request: Request,
 ) -> HealthResponse:
-    from fastapi import Request
-
     provider = getattr(request.app.state, "provider", None)
     store = getattr(request.app.state, "store", None)
     return HealthResponse(
