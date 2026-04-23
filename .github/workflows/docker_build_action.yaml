@@ -103,6 +103,19 @@ jobs:
             --services ea-dev-api \
             --region us-east-1
 
+  claude-pr-eval:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Trigger Claude PR Evaluator
+        run: |
+          curl -X POST https://claude.ai/api/v1/code/triggers/trig_014RCZ62HBAFT7rQFTUfUvWV/run \
+            -H "Authorization: Bearer ${{ secrets.CLAUDE_TRIGGER_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"pr_number": ${{ github.event.pull_request.number }}}'
+
   deploy-prefect:
     runs-on: ubuntu-latest
     needs: build
