@@ -59,43 +59,28 @@ resource "aws_iam_role" "github_actions" {
 }
 
 # ---------------------------------------------------------------------------
-# Inline policy — minimum permissions to push to ECR
+# Managed policy — ECR push permissions via AWS-managed policy
 # ---------------------------------------------------------------------------
 
-resource "aws_iam_role_policy" "ecr_push" {
-  name = "ecr-push"
+resource "aws_iam_role_policy_attachment" "ecr_power_user" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+}
+
+resource "aws_iam_role_policy" "ecs_deploy" {
+  name = "ecs-deploy"
   role = aws_iam_role.github_actions.id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "ECRAuth"
-        Effect = "Allow"
-        Action = "ecr:GetAuthorizationToken"
-        Resource = "*"
-      },
-      {
-        Sid    = "ECRPush"
-        Effect = "Allow"
-        Action = [
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:CompleteLayerUpload",
-          "ecr:InitiateLayerUpload",
-          "ecr:PutImage",
-          "ecr:UploadLayerPart",
-        ]
-        Resource = var.ecr_repository_arns
-      },
-      {
-        Sid    = "ECSUpdateService"
-        Effect = "Allow"
-        Action = [
-          "ecs:UpdateService",
-          "ecs:DescribeServices",
-        ]
-        Resource = "*"
-      },
-    ]
+    Statement = [{
+      Sid    = "ECSUpdateService"
+      Effect = "Allow"
+      Action = [
+        "ecs:UpdateService",
+        "ecs:DescribeServices",
+      ]
+      Resource = "*"
+    }]
   })
 }

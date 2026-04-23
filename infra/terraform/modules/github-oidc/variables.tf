@@ -14,11 +14,6 @@ variable "allowed_branches" {
   default     = ["main"]
 }
 
-variable "ecr_repository_arns" {
-  description = "ARNs of the ECR repositories the role is allowed to push to"
-  type        = list(string)
-}
-
 variable "tags" {
   type    = map(string)
   default = {}
