@@ -12,6 +12,7 @@ import boto3
 from prefect import flow, task
 from prefect.logging import get_run_logger
 from prefect.variables import Variable
+from prefect_aws import AwsCredentials
 
 
 # ---------------------------------------------------------------------------
@@ -37,7 +38,8 @@ def submit_ecs_task(
     """Submit the embed-pipeline ECS task and return its task ARN."""
     logger = get_run_logger()
 
-    ecs = boto3.client("ecs", region_name=aws_region)
+    aws_credentials = AwsCredentials.load("pipeline-runner")
+    ecs = aws_credentials.get_boto3_session().client("ecs", region_name=aws_region)
     env_overrides = [{"name": k, "value": v} for k, v in container_env.items()]
 
     response = ecs.run_task(
